@@ -1,0 +1,3 @@
+ALTER TABLE assignments ADD COLUMN assignment_status VARCHAR(50) DEFAULT 'ADMIN_ASSIGNED';
+ALTER TABLE assignments ADD COLUMN claimed_at DATETIME NULL;
+ALTER TABLE assignments MODIFY COLUMN supervisor_id BIGINT NULL;
