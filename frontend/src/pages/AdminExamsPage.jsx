@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ExamService from '../services/exam.service';
+import SeanceService from '../services/seance.service';
 import { FileText, Calendar } from '../components/icons';
 
 const AdminExamsPage = () => {
-    const [exams, setExams] = useState([]);
+    const [seances, setSeances] = useState([]);
     const [subject, setSubject] = useState('');
     const [date, setDate] = useState('');
     const [startTime, setStartTime] = useState('');
@@ -14,15 +14,15 @@ const AdminExamsPage = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        loadExams();
+        loadSeances();
     }, []);
 
-    const loadExams = async () => {
+    const loadSeances = async () => {
         try {
-            const data = await ExamService.getAllExams();
-            setExams(data);
+            const data = await SeanceService.getAllSeances();
+            setSeances(data);
         } catch (error) {
-            console.error("Failed to load exams", error);
+            console.error("Failed to load seances", error);
         }
     };
 
@@ -30,26 +30,26 @@ const AdminExamsPage = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await ExamService.createExam({ subject, date, startTime, endTime });
-            loadExams();
+            await SeanceService.createSeance({ subject, date, startTime, endTime });
+            loadSeances();
             setSubject('');
             setDate('');
             setStartTime('');
             setEndTime('');
-            setSuccess('Examen créé avec succès !');
+            setSuccess('Séance créée avec succès !');
             setTimeout(() => setSuccess(''), 3000);
         } catch (error) {
-            alert('Échec de la création de l\'examen');
+            alert('Échec de la création de la séance');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Êtes-vous sûr de vouloir supprimer cet examen ?')) {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer cette séance ?')) {
             try {
-                await ExamService.deleteExam(id);
-                loadExams();
+                await SeanceService.deleteSeance(id);
+                loadSeances();
             } catch (error) {
                 alert('Échec de la suppression');
             }
@@ -187,9 +187,9 @@ const AdminExamsPage = () => {
                                 <div className="px-6 py-5 border-b border-white/10 flex justify-between items-center bg-white/5">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                         <Calendar className="w-5 h-5 text-blue-400" />
-                                        Liste des Examens
+                                        Liste des Séances
                                         <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-500/30 ml-2">
-                                            {exams.length}
+                                            {seances.length}
                                         </span>
                                     </h2>
                                 </div>
@@ -205,25 +205,25 @@ const AdminExamsPage = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/10">
-                                            {exams.map((exam, index) => (
+                                            {seances.map((seance, index) => (
                                                 <tr
-                                                    key={exam.id}
+                                                    key={seance.id}
                                                     className="hover:bg-white/5 transition-colors group"
                                                 >
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">{exam.subject}</span>
+                                                        <span className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">{seance.subject}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-blue-100/70">{exam.date}</span>
+                                                        <span className="text-sm text-blue-100/70">{seance.date}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                                                            {exam.startTime} - {exam.endTime}
+                                                            {seance.startTime} - {seance.endTime}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                                         <button
-                                                            onClick={() => handleDelete(exam.id)}
+                                                            onClick={() => handleDelete(seance.id)}
                                                             className="px-3 py-1.5 bg-red-500/10 text-red-300 border border-red-500/20 text-xs font-medium rounded-lg hover:bg-red-500/20 hover:text-red-200 transition-all hover:shadow-lg hover:shadow-red-500/10"
                                                         >
                                                             Supprimer
@@ -233,12 +233,12 @@ const AdminExamsPage = () => {
                                             ))}
                                         </tbody>
                                     </table>
-                                    {exams.length === 0 && (
+                                    {seances.length === 0 && (
                                         <div className="text-center py-16">
                                             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                                                 <FileText className="w-8 h-8 text-white/20" />
                                             </div>
-                                            <p className="text-blue-200/50">Aucun examen créé pour le moment</p>
+                                            <p className="text-blue-200/50">Aucune séance créée pour le moment</p>
                                         </div>
                                     )}
                                 </div>

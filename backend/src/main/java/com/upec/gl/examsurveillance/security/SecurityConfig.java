@@ -37,15 +37,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/exams/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/seances/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/rooms/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/exams/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/exams/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/seances/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/seances/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/rooms/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/rooms/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/assignments/generate/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

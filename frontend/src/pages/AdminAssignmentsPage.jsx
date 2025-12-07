@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AssignmentService from '../services/assignment.service';
-import ExamService from '../services/exam.service';
+import SeanceService from '../services/seance.service';
 import { Users, Building, Calendar, ClipboardCheck } from '../components/icons';
 
 const AdminAssignmentsPage = () => {
     const [assignments, setAssignments] = useState([]);
-    const [exams, setExams] = useState([]);
-    const [selectedExamId, setSelectedExamId] = useState('');
+    const [seances, setSeances] = useState([]);
+    const [selectedSeanceId, setSelectedSeanceId] = useState('');
     const [success, setSuccess] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const navigate = useNavigate();
@@ -20,21 +20,21 @@ const AdminAssignmentsPage = () => {
         try {
             const assignmentsData = await AssignmentService.getAllAssignments();
             setAssignments(assignmentsData);
-            const examsData = await ExamService.getAllExams();
-            setExams(examsData);
+            const seancesData = await SeanceService.getAllSeances();
+            setSeances(seancesData);
         } catch (error) {
             console.error("Failed to load data", error);
         }
     };
 
     const handleGenerate = async () => {
-        if (!selectedExamId) {
-            alert('Veuillez sélectionner un examen');
+        if (!selectedSeanceId) {
+            alert('Veuillez sélectionner une séance');
             return;
         }
         setIsGenerating(true);
         try {
-            await AssignmentService.generateAssignments(selectedExamId);
+            await AssignmentService.generateAssignments(selectedSeanceId);
             setSuccess('Affectations générées avec succès !');
             setTimeout(() => setSuccess(''), 3000);
             loadData();
@@ -108,19 +108,19 @@ const AdminAssignmentsPage = () => {
                             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
                                 <select
                                     className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all min-w-[250px] [&>option]:text-gray-900"
-                                    value={selectedExamId}
-                                    onChange={(e) => setSelectedExamId(e.target.value)}
+                                    value={selectedSeanceId}
+                                    onChange={(e) => setSelectedSeanceId(e.target.value)}
                                 >
-                                    <option value="">Sélectionner un examen...</option>
-                                    {exams.map(exam => (
-                                        <option key={exam.id} value={exam.id}>
-                                            {exam.subject} ({exam.date} {exam.startTime})
+                                    <option value="">Sélectionner une séance...</option>
+                                    {seances.map(seance => (
+                                        <option key={seance.id} value={seance.id}>
+                                            {seance.subject} ({seance.date} {seance.startTime})
                                         </option>
                                     ))}
                                 </select>
                                 <button
                                     onClick={handleGenerate}
-                                    disabled={!selectedExamId || isGenerating}
+                                    disabled={!selectedSeanceId || isGenerating}
                                     className="px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
                                 >
                                     {isGenerating ? (

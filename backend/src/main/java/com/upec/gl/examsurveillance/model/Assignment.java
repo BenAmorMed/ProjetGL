@@ -17,8 +17,8 @@ public class Assignment {
     private Long id;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "exam_id", nullable = false)
-    private Exam exam;
+    @JoinColumn(name = "seance_id", nullable = false)
+    private Seance seance;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "room_id", nullable = false)
@@ -26,11 +26,11 @@ public class Assignment {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "supervisor_id", nullable = true)
-    private User supervisor;
+    private Enseignant supervisor;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "assignment_status")
-    private AssignmentStatus assignmentStatus = AssignmentStatus.ADMIN_ASSIGNED;
+    private AssignmentStatus assignmentStatus = AssignmentStatus.AVAILABLE;
 
     @Column(name = "claimed_at")
     private java.time.LocalDateTime claimedAt;

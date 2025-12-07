@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } f
 import { Toaster } from 'react-hot-toast';
 import { Home, Users, Calendar, BookOpen, User, LogOut, Menu, X } from 'lucide-react';
 import { cn } from './lib/utils';
+import AuthService from './services/auth.service';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -13,12 +14,29 @@ import AvailabilityPage from './pages/AvailabilityPage';
 import AdminExamsPage from './pages/AdminExamsPage';
 import AdminRoomsPage from './pages/AdminRoomsPage';
 import AdminAssignmentsPage from './pages/AdminAssignmentsPage';
+import TeacherAssignmentsPage from './pages/TeacherAssignmentsPage';
+
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const user = AuthService.getCurrentUser();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
 
 // Layout component
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
   const isAuthPage = ['/login', '/register', '/'].includes(location.pathname);
+  const user = AuthService.getCurrentUser();
 
   if (isAuthPage) {
     return (
@@ -29,13 +47,20 @@ const MainLayout = ({ children }) => {
     );
   }
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Availability', href: '/availability', icon: Calendar },
-    { name: 'Exams', href: '/admin/exams', icon: BookOpen },
-    { name: 'Rooms', href: '/admin/rooms', icon: Users },
-    { name: 'Assignments', href: '/admin/assignments', icon: User },
+  // Define all navigation items
+  const allNavItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['ADMIN', 'TEACHER'] },
+    { name: 'Availability', href: '/availability', icon: Calendar, roles: ['TEACHER'] },
+    { name: 'Exams', href: '/admin/exams', icon: BookOpen, roles: ['ADMIN'] },
+    { name: 'Rooms', href: '/admin/rooms', icon: Users, roles: ['ADMIN'] },
+    { name: 'Assignments', href: '/admin/assignments', icon: User, roles: ['ADMIN'] },
+    { name: 'My Assignments', href: '/teacher/assignments', icon: User, roles: ['TEACHER'] },
   ];
+
+  // Filter items based on user role
+  const navItems = allNavItems.filter(item =>
+    !item.roles || (user && item.roles.includes(user.role))
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -79,7 +104,7 @@ const MainLayout = ({ children }) => {
           <div className="p-4 border-t border-gray-200">
             <button
               onClick={() => {
-                // Add logout logic here
+                AuthService.logout();
                 window.location.href = '/login';
               }}
               className="w-full flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -108,19 +133,14 @@ const MainLayout = ({ children }) => {
                 {navItems.find(item => item.href === location.pathname)?.name || 'Dashboard'}
               </h2>
               <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <button className="p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                    <span className="sr-only">View notifications</span>
-                    <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary-700">3</span>
-                    </div>
-                  </button>
-                </div>
                 <div className="flex items-center">
                   <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                     <User className="h-5 w-5 text-primary-700" />
                   </div>
-                  <span className="ml-2 text-sm font-medium text-gray-700">Admin</span>
+                  <div className="ml-2 flex flex-col">
+                    <span className="text-sm font-medium text-gray-700">{user?.username || 'User'}</span>
+                    <span className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase() || 'Guest'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -147,11 +167,61 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/availability" element={<AvailabilityPage />} />
-          <Route path="/admin/exams" element={<AdminExamsPage />} />
-          <Route path="/admin/rooms" element={<AdminRoomsPage />} />
-          <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'TEACHER']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/availability"
+            element={
+              <ProtectedRoute allowedRoles={['TEACHER']}>
+                <AvailabilityPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/exams"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminExamsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/rooms"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminRoomsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/assignments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminAssignmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Teacher Routes */}
+          <Route
+            path="/teacher/assignments"
+            element={
+              <ProtectedRoute allowedRoles={['TEACHER']}>
+                <TeacherAssignmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </MainLayout>

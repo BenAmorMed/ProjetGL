@@ -41,6 +41,10 @@ public class AvailabilityController {
         return availabilityService.getAvailabilityByUserId(userId);
     }
 
+    @Operation(summary = "Get availability by date range", description = "Retrieve teacher availability slots within a specific date range")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved availability range")
+    })
     @GetMapping("/user/{userId}/range")
     public List<Availability> getAvailabilityRange(
             @PathVariable @NonNull Long userId,
@@ -49,6 +53,10 @@ public class AvailabilityController {
         return availabilityService.getAvailabilityByUserIdAndDateRange(userId, startDate, endDate);
     }
 
+    @Operation(summary = "Get monthly availability", description = "Retrieve teacher availability for a specific month and year")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved monthly availability")
+    })
     @GetMapping("/user/{userId}/month/{year}/{month}")
     public List<Availability> getMonthAvailability(
             @PathVariable @NonNull Long userId,
@@ -68,6 +76,11 @@ public class AvailabilityController {
         return availabilityService.createAvailability(availability);
     }
 
+    @Operation(summary = "Create bulk availabilities", description = "Create multiple teacher availability slots at once")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bulk availabilities created successfully"),
+            @ApiResponse(responseCode = "400", description = "Conflict with existing availability or invalid data")
+    })
     @PostMapping("/bulk")
     public ResponseEntity<List<Availability>> createBulkAvailability(
             @RequestBody @NonNull List<Availability> availabilities) {
@@ -84,6 +97,11 @@ public class AvailabilityController {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
 
+    @Operation(summary = "Delete availability", description = "Delete a teacher availability slot by ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Availability deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Availability not found")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAvailability(@PathVariable @NonNull Long id) {
         availabilityService.deleteAvailability(id);
