@@ -260,17 +260,20 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("📝 Creating séances...");
         List<Seance> seances = new ArrayList<>();
 
-        // Créer 6 séances pour la semaine du 6 au 10 janvier 2025
+        // Créer 30 séances sur 2 semaines
         LocalDate startDate = LocalDate.of(2025, 1, 6);
 
-        for (int day = 0; day < 3; day++) { // 3 jours
+        for (int day = 0; day < 10; day++) { // 10 jours (2 semaines ouvrées)
+            // Skip weekends
+            if (day == 5 || day == 6) continue;
+            
             LocalDate date = startDate.plusDays(day);
 
-            for (int i = 0; i < 2 && i < horaires.size(); i++) { // 2 séances par jour
+            for (int i = 0; i < horaires.size(); i++) { // 3 séances par jour
                 Seance seance = new Seance();
                 seance.setDate(date);
                 seance.setHoraire(horaires.get(i));
-                seance.setMatiere(matieres.get((day * 2 + i) % matieres.size()));
+                seance.setMatiere(matieres.get((day * 3 + i) % matieres.size()));
                 seances.add(seanceRepository.save(seance));
             }
         }
@@ -313,39 +316,65 @@ public class DataInitializer implements CommandLineRunner {
         if (teachers.isEmpty() || seances.isEmpty())
             return;
 
-        // Create some wishes
-        // Each teacher makes 1-3 wishes
-        for (int i = 0; i < teachers.size(); i++) {
-            Enseignant teacher = teachers.get(i);
-            int nbVoeux = 1 + (i % 3); // 1, 2, or 3 wishes
+        // 1. Simulate SATURATION for the first 5 sessions
+        // We need enough wishes to meet the required supervisors (approx 3-6 wishes per session)
+        for (int i = 0; i < 5; i++) {
+            Seance seance = seances.get(i);
+            // Calculate required supervisors (approx logic: packets * 1.5)
+            // We know we created epreuves with 2-4 packets, so required is ~3-6
+            int required = 6; 
+            
+            for (int j = 0; j < required; j++) {
+                if (j < teachers.size()) {
+                    Enseignant teacher = teachers.get(j);
+                    
+                    // Skip if teacher teaches this subject (constraint)
+                    boolean teachesSubject = teacher.getMatieresEnseignees().stream()
+                        .anyMatch(m -> m.getId().equals(seance.getMatiere().getId()));
+                        
+                    if (!teachesSubject) {
+                        createVoeu(teacher, seance, VoeuStatus.EN_ATTENTE);
+                        count++;
+                    }
+                }
+            }
+            System.out.println("   -> Simulated saturation for session " + seance.getId() + " (" + seance.getMatiere().getNom() + ")");
+        }
 
-            for (int j = 0; j < nbVoeux; j++) {
-                // Pick a random seance (deterministic for reproducibility)
-                int seanceIndex = (i + j * 2) % seances.size();
-                Seance seance = seances.get(seanceIndex);
+        // 2. Create random wishes for other sessions
+        for (int i = 5; i < seances.size(); i++) {
+            Seance seance = seances.get(i);
+            // 30% chance to have some wishes
+            if (Math.random() > 0.7) {
+                int nbVoeux = (int) (Math.random() * 3); // 0 to 2 wishes
+                for (int j = 0; j < nbVoeux; j++) {
+                     Enseignant teacher = teachers.get((int)(Math.random() * teachers.size()));
+                     
+                     // Check constraint
+                     boolean teachesSubject = teacher.getMatieresEnseignees().stream()
+                        .anyMatch(m -> m.getId().equals(seance.getMatiere().getId()));
+                     
+                     // Check if already has wish
+                     boolean hasWish = voeuRepository.findByEnseignantIdAndSeanceId(teacher.getId(), seance.getId()).isPresent();
 
-                // Check if wish already exists (in memory check, though DB is empty)
-                // Just create it
-                Voeu voeu = new Voeu();
-                voeu.setEnseignant(teacher);
-                voeu.setSeance(seance);
-                voeu.setDateExpression(java.time.LocalDateTime.now().minusDays(i).minusHours(j));
-
-                // Vary statuses
-                if (j == 0)
-                    voeu.setStatut(VoeuStatus.ACCEPTE);
-                else if (j == 1)
-                    voeu.setStatut(VoeuStatus.EN_ATTENTE);
-                else
-                    voeu.setStatut(VoeuStatus.REFUSE);
-
-                voeu.setCommentaire("Je suis disponible pour cette séance.");
-
-                voeuRepository.save(voeu);
-                count++;
+                     if (!teachesSubject && !hasWish) {
+                         createVoeu(teacher, seance, VoeuStatus.EN_ATTENTE);
+                         count++;
+                     }
+                }
             }
         }
 
         System.out.println("✅ Created " + count + " vœux");
+    }
+
+    private void createVoeu(Enseignant teacher, Seance seance, VoeuStatus status) {
+        Voeu voeu = new Voeu();
+        voeu.setEnseignant(teacher);
+        voeu.setSeance(seance);
+        voeu.setDateExpression(java.time.LocalDateTime.now());
+        voeu.setStatut(status);
+        voeu.setCommentaire("Auto-generated wish");
+        voeuRepository.save(voeu);
     }
 }

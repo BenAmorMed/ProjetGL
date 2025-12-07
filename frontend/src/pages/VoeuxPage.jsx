@@ -19,6 +19,8 @@ const VoeuxPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const navigate = useNavigate();
 
+    const [saturationMap, setSaturationMap] = useState({});
+
     useEffect(() => {
         const user = AuthService.getCurrentUser();
         if (!user) {
@@ -58,6 +60,19 @@ const VoeuxPage = () => {
             } catch (err) {
                 console.error("Failed to load my subjects", err);
                 // Non-blocking error
+            }
+
+            // Load Saturation Info
+            try {
+                const saturationData = await SurveillanceService.getResumeSeances();
+                // Convert list to map for easier lookup: { seanceId: isSature }
+                const map = {};
+                saturationData.forEach(info => {
+                    map[info.seanceId] = info.saturee;
+                });
+                setSaturationMap(map);
+            } catch (err) {
+                console.error("Failed to load saturation info", err);
             }
 
             // Load Capacity
@@ -293,6 +308,7 @@ const VoeuxPage = () => {
                                             seance={seance}
                                             onAction={handleExprimerVoeu}
                                             myMatieres={myMatieres}
+                                            isSature={saturationMap[seance.id]}
                                         />
                                     ))
                                 )
@@ -362,21 +378,67 @@ const VoeuCard = ({ voeu, onAction }) => {
     );
 };
 
-const SeanceCard = ({ seance, onAction, myMatieres }) => {
+const SeanceCard = ({ seance, onAction, myMatieres, isSature }) => {
     const matiere = seance.matiere || {};
     const horaire = seance.horaire || {};
     const enseigneMatiere = myMatieres.some(m => m.id === matiere.id);
 
+    // Determine styling based on priority:
+    // 1. Taught Subject (Orange)
+    // 2. Saturated (Red)
+    // 3. Available (Green)
+
+    let borderColor = 'border-gray-100';
+    let bgColor = 'bg-white';
+    let headerColor = 'bg-gradient-to-r from-emerald-500 to-teal-500';
+    let textColor = 'text-gray-800';
+    let buttonColor = 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30';
+    let disabled = false;
+
+    if (enseigneMatiere) {
+        borderColor = 'border-orange-300';
+        bgColor = 'bg-orange-50';
+        headerColor = 'bg-orange-400';
+        textColor = 'text-orange-800';
+        buttonColor = 'bg-orange-200 text-orange-700 cursor-not-allowed border border-orange-300';
+        disabled = true;
+    } else if (isSature) {
+        borderColor = 'border-red-300';
+        bgColor = 'bg-red-50';
+        headerColor = 'bg-red-500';
+        textColor = 'text-red-800';
+        buttonColor = 'bg-red-200 text-red-700 cursor-not-allowed border border-red-300';
+        disabled = true;
+    } else {
+        // Green (Available) - Default but explicit for clarity
+        borderColor = 'border-emerald-200';
+        bgColor = 'bg-emerald-50';
+        headerColor = 'bg-emerald-500';
+        textColor = 'text-emerald-900';
+        buttonColor = 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30';
+        disabled = false;
+    }
+
     return (
-        <div className={`bg-white rounded-2xl shadow-lg overflow-hidden border transition-all duration-300 transform hover:-translate-y-1 ${enseigneMatiere ? 'border-orange-300 bg-orange-50' : 'border-gray-100 hover:shadow-xl'}`}>
-            <div className={`h-2 w-full ${enseigneMatiere ? 'bg-orange-400' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
+        <div className={`rounded-2xl shadow-lg overflow-hidden border transition-all duration-300 transform hover:-translate-y-1 ${borderColor} ${bgColor} ${!disabled && 'hover:shadow-xl'}`}>
+            <div className={`h-2 w-full ${headerColor}`}></div>
             <div className="p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                        <h3 className={`text-lg font-bold ${enseigneMatiere ? 'text-orange-800' : 'text-gray-800'}`}>{matiere.nom || 'Matière inconnue'}</h3>
+                        <h3 className={`text-lg font-bold ${textColor}`}>{matiere.nom || 'Matière inconnue'}</h3>
                         {enseigneMatiere && (
                             <span className="px-2 py-0.5 rounded-full bg-orange-200 text-orange-800 text-xs font-bold">
                                 Votre matière
+                            </span>
+                        )}
+                        {!enseigneMatiere && isSature && (
+                            <span className="px-2 py-0.5 rounded-full bg-red-200 text-red-800 text-xs font-bold">
+                                Complet
+                            </span>
+                        )}
+                        {!enseigneMatiere && !isSature && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800 text-xs font-bold">
+                                Disponible
                             </span>
                         )}
                     </div>
@@ -396,17 +458,19 @@ const SeanceCard = ({ seance, onAction, myMatieres }) => {
                 <div className="w-full md:w-auto">
                     <button
                         onClick={() => onAction(seance.id)}
-                        disabled={enseigneMatiere}
-                        className={`w-full md:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${enseigneMatiere
-                            ? 'bg-orange-200 text-orange-700 cursor-not-allowed border border-orange-300'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30'
-                            }`}
-                        title={enseigneMatiere ? "Vous ne pouvez pas surveiller votre propre matière" : ""}
+                        disabled={disabled}
+                        className={`w-full md:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${buttonColor}`}
+                        title={enseigneMatiere ? "Vous ne pouvez pas surveiller votre propre matière" : (isSature ? "Cette séance est complète" : "")}
                     >
                         {enseigneMatiere ? (
                             <>
                                 <XCircle className="w-5 h-5" />
                                 Non autorisé
+                            </>
+                        ) : isSature ? (
+                            <>
+                                <XCircle className="w-5 h-5" />
+                                Complet
                             </>
                         ) : (
                             <>

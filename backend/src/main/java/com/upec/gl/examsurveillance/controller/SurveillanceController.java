@@ -92,7 +92,7 @@ public class SurveillanceController {
 
     @Operation(summary = "Obtenir un résumé de toutes les séances avec leur statut de saturation")
     @GetMapping("/resume-seances")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     public ResponseEntity<List<SaturationInfo>> getResumeSeances() {
         List<Seance> seances = seanceRepository.findAll();
         List<SaturationInfo> resume = seances.stream()
