@@ -39,38 +39,47 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private EpreuveRepository epreuveRepository;
 
+    @Autowired
+    private VoeuRepository voeuRepository;
+
     @Override
     public void run(String... args) {
         System.out.println("========================================");
         System.out.println("🚀 DataInitializer started");
         System.out.println("========================================");
 
-        // Check if data already exists
-        if (enseignantRepository.count() > 0) {
-            System.out.println("✅ Data already exists. Skipping initialization.");
-            return;
-        }
+        boolean dataExists = enseignantRepository.count() > 0;
 
         try {
-            // Initialize sample data
-            List<Enseignant> users = createUsers();
-            List<Room> rooms = createRooms();
-            List<Exam> exams = createExams();
-            List<Matiere> matieres = createMatieres();
-            List<Horaire> horaires = createHoraires();
-            List<Seance> seances = createSeances(horaires, matieres);
-            createEpreuves(seances, matieres);
+            List<Enseignant> users;
+            List<Seance> seances;
+
+            if (!dataExists) {
+                // Initialize basic data
+                users = createUsers();
+                createRooms();
+                createExams();
+                List<Matiere> matieres = createMatieres();
+                List<Horaire> horaires = createHoraires();
+                seances = createSeances(horaires, matieres);
+                createEpreuves(seances, matieres);
+
+                System.out.println("✅ Basic sample data initialization completed!");
+            } else {
+                System.out.println("ℹ️ Basic data already exists.");
+                users = enseignantRepository.findAll();
+                seances = seanceRepository.findAll();
+            }
+
+            // Initialize Voeux if none exist
+            if (voeuRepository.count() == 0 && !users.isEmpty() && !seances.isEmpty()) {
+                createVoeux(users, seances);
+            } else {
+                System.out.println("ℹ️ Voeux data already exists.");
+            }
 
             System.out.println("========================================");
-            System.out.println("✅ Sample data initialization completed!");
-            System.out.println("📊 Created:");
-            System.out.println("   - " + users.size() + " users (1 admin + 15 teachers)");
-            System.out.println("   - " + rooms.size() + " rooms");
-            System.out.println("   - " + exams.size() + " exams");
-            System.out.println("   - " + matieres.size() + " matières");
-            System.out.println("   - " + horaires.size() + " horaires");
-            System.out.println("   - " + seances.size() + " séances");
-            System.out.println("========================================");
+            System.out.println("✅ All data initialization completed!");
             System.out.println("🔐 Login Credentials:");
             System.out.println("   Admin: username='admin', password='admin123'");
             System.out.println("   Teachers: username='jdupont', password='teacher123'");
@@ -266,5 +275,53 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         System.out.println("✅ Created " + count + " épreuves");
+    }
+
+    private void createVoeux(List<Enseignant> users, List<Seance> seances) {
+        System.out.println("📝 Creating vœux...");
+        int count = 0;
+
+        // Filter only teachers
+        List<Enseignant> teachers = users.stream()
+                .filter(u -> u.getRole() == Role.TEACHER)
+                .toList();
+
+        if (teachers.isEmpty() || seances.isEmpty())
+            return;
+
+        // Create some wishes
+        // Each teacher makes 1-3 wishes
+        for (int i = 0; i < teachers.size(); i++) {
+            Enseignant teacher = teachers.get(i);
+            int nbVoeux = 1 + (i % 3); // 1, 2, or 3 wishes
+
+            for (int j = 0; j < nbVoeux; j++) {
+                // Pick a random seance (deterministic for reproducibility)
+                int seanceIndex = (i + j * 2) % seances.size();
+                Seance seance = seances.get(seanceIndex);
+
+                // Check if wish already exists (in memory check, though DB is empty)
+                // Just create it
+                Voeu voeu = new Voeu();
+                voeu.setEnseignant(teacher);
+                voeu.setSeance(seance);
+                voeu.setDateExpression(java.time.LocalDateTime.now().minusDays(i).minusHours(j));
+
+                // Vary statuses
+                if (j == 0)
+                    voeu.setStatut(VoeuStatus.ACCEPTE);
+                else if (j == 1)
+                    voeu.setStatut(VoeuStatus.EN_ATTENTE);
+                else
+                    voeu.setStatut(VoeuStatus.REFUSE);
+
+                voeu.setCommentaire("Je suis disponible pour cette séance.");
+
+                voeuRepository.save(voeu);
+                count++;
+            }
+        }
+
+        System.out.println("✅ Created " + count + " vœux");
     }
 }

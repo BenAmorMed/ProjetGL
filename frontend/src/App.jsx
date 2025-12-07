@@ -15,6 +15,8 @@ import AdminExamsPage from './pages/AdminExamsPage';
 import AdminRoomsPage from './pages/AdminRoomsPage';
 import AdminAssignmentsPage from './pages/AdminAssignmentsPage';
 import TeacherAssignmentsPage from './pages/TeacherAssignmentsPage';
+import VoeuxPage from './pages/VoeuxPage';
+import SurveillancePage from './pages/SurveillancePage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -54,7 +56,9 @@ const MainLayout = ({ children }) => {
     { name: 'Exams', href: '/admin/exams', icon: BookOpen, roles: ['ADMIN'] },
     { name: 'Rooms', href: '/admin/rooms', icon: Users, roles: ['ADMIN'] },
     { name: 'Assignments', href: '/admin/assignments', icon: User, roles: ['ADMIN'] },
+    { name: 'Surveillance', href: '/admin/surveillance', icon: Users, roles: ['ADMIN'] },
     { name: 'My Assignments', href: '/teacher/assignments', icon: User, roles: ['TEACHER'] },
+    { name: 'Mes Vœux', href: '/teacher/voeux', icon: Calendar, roles: ['TEACHER'] },
   ];
 
   // Filter items based on user role
@@ -211,6 +215,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/surveillance"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <SurveillancePage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Teacher Routes */}
           <Route
@@ -218,6 +230,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['TEACHER']}>
                 <TeacherAssignmentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/voeux"
+            element={
+              <ProtectedRoute allowedRoles={['TEACHER']}>
+                <VoeuxPage />
               </ProtectedRoute>
             }
           />
