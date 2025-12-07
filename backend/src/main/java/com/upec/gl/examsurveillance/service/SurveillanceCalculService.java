@@ -3,6 +3,7 @@ package com.upec.gl.examsurveillance.service;
 import com.upec.gl.examsurveillance.model.*;
 import com.upec.gl.examsurveillance.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +26,7 @@ public class SurveillanceCalculService {
      * Calcule la capacité de surveillance d'un enseignant
      * Formule: (chargeEnseignement × 1.5) - nombre de séances de ses matières
      */
-    public Integer calculateSurveillanceCapacity(Long enseignantId) {
+    public Integer calculateSurveillanceCapacity(@NonNull Long enseignantId) {
         Enseignant enseignant = enseignantRepository.findById(enseignantId)
                 .orElseThrow(() -> new RuntimeException("Enseignant introuvable"));
 
@@ -67,7 +68,7 @@ public class SurveillanceCalculService {
      * Calcule le nombre de surveillants requis pour une séance
      * Formule: Math.ceil(somme des paquets des épreuves × 1.5)
      */
-    public Integer calculateRequiredSupervisors(Long seanceId) {
+    public Integer calculateRequiredSupervisors(@NonNull Long seanceId) {
         List<Epreuve> epreuves = epreuveRepository.findBySeanceId(seanceId);
 
         if (epreuves.isEmpty()) {
@@ -89,7 +90,7 @@ public class SurveillanceCalculService {
      * Vérifie si une séance est saturée
      * Une séance est saturée si le nombre de vœux actifs >= surveillants requis
      */
-    public boolean isSeanceSaturee(Long seanceId) {
+    public boolean isSeanceSaturee(@NonNull Long seanceId) {
         Integer surveillantsRequis = calculateRequiredSupervisors(seanceId);
         Long voeuxActifs = voeuRepository.countActiveVoeuxBySeanceId(seanceId);
 
@@ -99,7 +100,7 @@ public class SurveillanceCalculService {
     /**
      * Obtient le statut de saturation d'une séance
      */
-    public SaturationInfo getSaturationInfo(Long seanceId) {
+    public SaturationInfo getSaturationInfo(@NonNull Long seanceId) {
         Integer surveillantsRequis = calculateRequiredSupervisors(seanceId);
         Long voeuxActifs = voeuRepository.countActiveVoeuxBySeanceId(seanceId);
 

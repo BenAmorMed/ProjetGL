@@ -3,6 +3,7 @@ package com.upec.gl.examsurveillance.service;
 import com.upec.gl.examsurveillance.model.*;
 import com.upec.gl.examsurveillance.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class VoeuService {
     /**
      * Exprime un vœu pour une séance
      */
-    public Voeu exprimerVoeu(Long enseignantId, Long seanceId, String commentaire) {
+    public Voeu exprimerVoeu(@NonNull Long enseignantId, @NonNull Long seanceId, String commentaire) {
         // Vérifier que l'enseignant existe
         Enseignant enseignant = enseignantRepository.findById(enseignantId)
                 .orElseThrow(() -> new RuntimeException("Enseignant introuvable"));
@@ -63,7 +64,7 @@ public class VoeuService {
     /**
      * Annule un vœu
      */
-    public void annulerVoeu(Long voeuId, Long enseignantId) {
+    public void annulerVoeu(@NonNull Long voeuId, @NonNull Long enseignantId) {
         Voeu voeu = voeuRepository.findById(voeuId)
                 .orElseThrow(() -> new RuntimeException("Vœu introuvable"));
 
@@ -84,21 +85,21 @@ public class VoeuService {
     /**
      * Récupère tous les vœux d'un enseignant
      */
-    public List<Voeu> getVoeuxByEnseignant(Long enseignantId) {
+    public List<Voeu> getVoeuxByEnseignant(@NonNull Long enseignantId) {
         return voeuRepository.findByEnseignantIdWithSeance(enseignantId);
     }
 
     /**
      * Récupère tous les vœux pour une séance
      */
-    public List<Voeu> getVoeuxBySeance(Long seanceId) {
+    public List<Voeu> getVoeuxBySeance(@NonNull Long seanceId) {
         return voeuRepository.findBySeanceId(seanceId);
     }
 
     /**
      * Accepte un vœu (pour l'admin)
      */
-    public Voeu accepterVoeu(Long voeuId) {
+    public Voeu accepterVoeu(@NonNull Long voeuId) {
         Voeu voeu = voeuRepository.findById(voeuId)
                 .orElseThrow(() -> new RuntimeException("Vœu introuvable"));
 
@@ -109,7 +110,7 @@ public class VoeuService {
     /**
      * Refuse un vœu (pour l'admin)
      */
-    public Voeu refuserVoeu(Long voeuId, String raison) {
+    public Voeu refuserVoeu(@NonNull Long voeuId, String raison) {
         Voeu voeu = voeuRepository.findById(voeuId)
                 .orElseThrow(() -> new RuntimeException("Vœu introuvable"));
 
@@ -121,7 +122,7 @@ public class VoeuService {
     /**
      * Obtient les statistiques des vœux pour un enseignant
      */
-    public VoeuStats getVoeuStats(Long enseignantId) {
+    public VoeuStats getVoeuStats(@NonNull Long enseignantId) {
         List<Voeu> voeux = voeuRepository.findByEnseignantId(enseignantId);
 
         VoeuStats stats = new VoeuStats();

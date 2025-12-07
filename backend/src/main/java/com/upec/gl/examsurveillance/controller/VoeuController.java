@@ -1,12 +1,15 @@
 package com.upec.gl.examsurveillance.controller;
 
+import com.upec.gl.examsurveillance.model.User;
 import com.upec.gl.examsurveillance.model.Voeu;
+import com.upec.gl.examsurveillance.repository.UserRepository;
 import com.upec.gl.examsurveillance.service.VoeuService;
 import com.upec.gl.examsurveillance.service.VoeuService.VoeuStats;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -23,30 +26,32 @@ public class VoeuController {
     @Autowired
     private VoeuService voeuService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Operation(summary = "Obtenir mes vœux (enseignant)")
     @GetMapping("/mes-voeux")
     @PreAuthorize("hasRole('TEACHER')")
     public List<Voeu> getMesVoeux(Authentication authentication) {
-        // Récupérer l'ID de l'enseignant connecté depuis l'authentication
-        // Pour simplifier, on suppose que le username est utilisé
-        // En production, il faudrait récupérer l'ID depuis le JWT ou la session
         String username = authentication.getName();
-        // TODO: Récupérer l'ID de l'enseignant depuis le username
-        // Pour l'instant, retourne une liste vide
-        return List.of();
+        User user = userRepository.findByEmail(username)
+                .orElseGet(() -> userRepository.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé")));
+
+        return voeuService.getVoeuxByEnseignant(user.getId());
     }
 
     @Operation(summary = "Obtenir les vœux d'un enseignant (admin)")
     @GetMapping("/enseignant/{enseignantId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<Voeu> getVoeuxByEnseignant(@PathVariable Long enseignantId) {
+    public List<Voeu> getVoeuxByEnseignant(@PathVariable @NonNull Long enseignantId) {
         return voeuService.getVoeuxByEnseignant(enseignantId);
     }
 
     @Operation(summary = "Obtenir les vœux pour une séance (admin)")
     @GetMapping("/seance/{seanceId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<Voeu> getVoeuxBySeance(@PathVariable Long seanceId) {
+    public List<Voeu> getVoeuxBySeance(@PathVariable @NonNull Long seanceId) {
         return voeuService.getVoeuxBySeance(seanceId);
     }
 
@@ -72,8 +77,8 @@ public class VoeuController {
     @DeleteMapping("/{voeuId}")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<?> annulerVoeu(
-            @PathVariable Long voeuId,
-            @RequestParam Long enseignantId) {
+            @PathVariable @NonNull Long voeuId,
+            @RequestParam @NonNull Long enseignantId) {
         try {
             voeuService.annulerVoeu(voeuId, enseignantId);
             return ResponseEntity.ok().build();
@@ -85,7 +90,7 @@ public class VoeuController {
     @Operation(summary = "Accepter un vœu (admin)")
     @PutMapping("/{voeuId}/accepter")
     @PreAuthorize("hasRole('ADMIN')")
-    public Voeu accepterVoeu(@PathVariable Long voeuId) {
+    public Voeu accepterVoeu(@PathVariable @NonNull Long voeuId) {
         return voeuService.accepterVoeu(voeuId);
     }
 
@@ -93,7 +98,7 @@ public class VoeuController {
     @PutMapping("/{voeuId}/refuser")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Voeu> refuserVoeu(
-            @PathVariable Long voeuId,
+            @PathVariable @NonNull Long voeuId,
             @RequestBody Map<String, String> request) {
         String raison = request.get("raison");
         return ResponseEntity.ok(voeuService.refuserVoeu(voeuId, raison));
@@ -102,7 +107,7 @@ public class VoeuController {
     @Operation(summary = "Obtenir les statistiques de mes vœux")
     @GetMapping("/stats/{enseignantId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    public VoeuStats getVoeuStats(@PathVariable Long enseignantId) {
+    public VoeuStats getVoeuStats(@PathVariable @NonNull Long enseignantId) {
         return voeuService.getVoeuStats(enseignantId);
     }
 }
