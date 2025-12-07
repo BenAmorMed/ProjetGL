@@ -1,8 +1,8 @@
 package com.upec.gl.examsurveillance.controller;
 
-import com.upec.gl.examsurveillance.model.User;
+import com.upec.gl.examsurveillance.model.Enseignant;
 import com.upec.gl.examsurveillance.model.Voeu;
-import com.upec.gl.examsurveillance.repository.UserRepository;
+import com.upec.gl.examsurveillance.repository.EnseignantRepository;
 import com.upec.gl.examsurveillance.service.VoeuService;
 import com.upec.gl.examsurveillance.service.VoeuService.VoeuStats;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,18 +27,18 @@ public class VoeuController {
     private VoeuService voeuService;
 
     @Autowired
-    private UserRepository userRepository;
+    private EnseignantRepository enseignantRepository;
 
     @Operation(summary = "Obtenir mes vœux (enseignant)")
     @GetMapping("/mes-voeux")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public List<Voeu> getMesVoeux(Authentication authentication) {
         String username = authentication.getName();
-        User user = userRepository.findByEmail(username)
-                .orElseGet(() -> userRepository.findByUsername(username)
+        Enseignant enseignant = enseignantRepository.findByEmail(username)
+                .orElseGet(() -> enseignantRepository.findByUsername(username)
                         .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé")));
 
-        return voeuService.getVoeuxByEnseignant(user.getId());
+        return voeuService.getVoeuxByEnseignant(enseignant.getId());
     }
 
     @Operation(summary = "Obtenir les vœux d'un enseignant (admin)")
@@ -57,7 +57,7 @@ public class VoeuController {
 
     @Operation(summary = "Exprimer un vœu")
     @PostMapping
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<?> exprimerVoeu(
             @RequestBody Map<String, Object> request,
             Authentication authentication) {
@@ -75,7 +75,7 @@ public class VoeuController {
 
     @Operation(summary = "Annuler un vœu")
     @DeleteMapping("/{voeuId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<?> annulerVoeu(
             @PathVariable @NonNull Long voeuId,
             @RequestParam @NonNull Long enseignantId) {

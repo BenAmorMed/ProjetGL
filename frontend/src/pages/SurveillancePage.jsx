@@ -14,7 +14,7 @@ const SurveillancePage = () => {
 
     useEffect(() => {
         const user = AuthService.getCurrentUser();
-        if (!user || !user.roles.includes('ROLE_ADMIN')) {
+        if (!user || user.role !== 'ADMIN') {
             navigate('/dashboard');
             return;
         }

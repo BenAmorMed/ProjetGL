@@ -60,6 +60,7 @@ public class DataInitializer implements CommandLineRunner {
                 createRooms();
                 createExams();
                 List<Matiere> matieres = createMatieres();
+                assignMatieresToTeachers(users, matieres);
                 List<Horaire> horaires = createHoraires();
                 seances = createSeances(horaires, matieres);
                 createEpreuves(seances, matieres);
@@ -142,6 +143,29 @@ public class DataInitializer implements CommandLineRunner {
 
         System.out.println("✅ Created " + users.size() + " users");
         return users;
+    }
+
+    private void assignMatieresToTeachers(List<Enseignant> teachers, List<Matiere> matieres) {
+        System.out.println("📝 Assigning subjects to teachers...");
+        for (int i = 0; i < teachers.size(); i++) {
+            Enseignant teacher = teachers.get(i);
+            if (teacher.getRole() == Role.TEACHER) {
+                // Assign 1 or 2 subjects to each teacher
+                int nbMatieres = 1 + (i % 2);
+                java.util.Set<Matiere> teacherMatieres = new java.util.HashSet<>();
+
+                for (int j = 0; j < nbMatieres; j++) {
+                    Matiere matiere = matieres.get((i + j) % matieres.size());
+                    teacherMatieres.add(matiere);
+                }
+                teacher.setMatieresEnseignees(teacherMatieres);
+                enseignantRepository.save(teacher);
+
+                System.out.println("   -> Assigned " + teacherMatieres.size() + " subjects to " + teacher.getUsername()
+                        + ": " + teacherMatieres.stream().map(Matiere::getNom).toList());
+            }
+        }
+        System.out.println("✅ Subjects assigned");
     }
 
     private List<Room> createRooms() {

@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VoeuService from '../services/voeu.service';
 import SeanceService from '../services/seance.service';
+import SurveillanceService from '../services/surveillance.service';
+import EnseignantService from '../services/enseignant.service';
 import AuthService from '../services/auth.service';
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, PlusCircle } from '../components/icons';
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, PlusCircle, Printer } from '../components/icons';
 
 const VoeuxPage = () => {
     const [myVoeux, setMyVoeux] = useState([]);
     const [seances, setSeances] = useState([]);
+    const [myMatieres, setMyMatieres] = useState([]);
+    const [capacity, setCapacity] = useState(null);
     const [activeTab, setActiveTab] = useState('my'); // 'my' or 'available'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -22,21 +26,55 @@ const VoeuxPage = () => {
             return;
         }
         setCurrentUser(user);
-        loadData();
+        loadData(user);
     }, [navigate]);
 
-    const loadData = async () => {
+    const loadData = async (user) => {
         setLoading(true);
+        setError('');
         try {
-            const [voeuxData, seancesData] = await Promise.all([
-                VoeuService.getMesVoeux(),
-                SeanceService.getAllSeances()
-            ]);
-            setMyVoeux(voeuxData);
-            setSeances(seancesData);
+            // Load Wishes
+            try {
+                const voeuxData = await VoeuService.getMesVoeux();
+                setMyVoeux(voeuxData);
+            } catch (err) {
+                console.error("Failed to load wishes", err);
+                setError(prev => prev + "Failed to load wishes. " + (err.response?.data?.message || err.message) + "\n");
+            }
+
+            // Load Sessions
+            try {
+                const seancesData = await SeanceService.getAllSeances();
+                setSeances(seancesData);
+            } catch (err) {
+                console.error("Failed to load sessions", err);
+                setError(prev => prev + "Failed to load sessions. " + (err.response?.data?.message || err.message) + "\n");
+            }
+
+            // Load My Subjects (Matieres)
+            try {
+                const matieresData = await EnseignantService.getMyMatieres();
+                setMyMatieres(matieresData);
+            } catch (err) {
+                console.error("Failed to load my subjects", err);
+                // Non-blocking error
+            }
+
+            // Load Capacity
+            if (user && user.id) {
+                try {
+                    const capacityData = await SurveillanceService.getCapacity(user.id);
+                    if (capacityData) {
+                        setCapacity(capacityData.capaciteDisponible);
+                    }
+                } catch (err) {
+                    console.error("Failed to load capacity", err);
+                    // Don't show error for capacity as it's secondary
+                }
+            }
         } catch (err) {
-            console.error("Failed to load data", err);
-            setError("Failed to load data.");
+            console.error("Unexpected error", err);
+            setError("An unexpected error occurred.");
         } finally {
             setLoading(false);
         }
@@ -44,14 +82,6 @@ const VoeuxPage = () => {
 
     const handleExprimerVoeu = async (seanceId) => {
         try {
-            // Assuming currentUser has an id. If not, we might need to fetch it or rely on backend to infer from token (which we implemented!)
-            // But the exprimerVoeu service expects enseignantId. 
-            // Wait, the backend VoeuController.exprimerVoeu takes a map with enseignantId.
-            // And my fix in VoeuController.getMesVoeux infers ID from token.
-            // But exprimerVoeu endpoint still expects enseignantId in the body.
-            // I should probably update the backend to infer it too, but for now let's send it if we have it.
-            // If AuthService.getCurrentUser() returns the user object with ID, we are good.
-
             if (!currentUser || !currentUser.id) {
                 setError("User information missing. Please login again.");
                 return;
@@ -60,7 +90,7 @@ const VoeuxPage = () => {
             await VoeuService.exprimerVoeu(currentUser.id, seanceId, "Je suis intéressé");
             setSuccess('Vœu exprimé avec succès !');
             setTimeout(() => setSuccess(''), 3000);
-            loadData();
+            loadData(currentUser);
         } catch (err) {
             setError(err.response?.data?.error || 'Échec lors de l\'expression du vœu.');
             setTimeout(() => setError(''), 3000);
@@ -79,11 +109,15 @@ const VoeuxPage = () => {
             await VoeuService.annulerVoeu(voeuId, currentUser.id);
             setSuccess('Vœu annulé avec succès !');
             setTimeout(() => setSuccess(''), 3000);
-            loadData();
+            loadData(currentUser);
         } catch (err) {
             setError(err.response?.data?.error || 'Échec lors de l\'annulation du vœu.');
             setTimeout(() => setError(''), 3000);
         }
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     // Filter sessions that don't have a wish yet
@@ -92,9 +126,9 @@ const VoeuxPage = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-            {/* Navbar */}
-            <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/20 sticky top-0 z-50">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 print:bg-white">
+            {/* Navbar - hidden on print */}
+            <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/20 sticky top-0 z-50 print:hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
@@ -105,20 +139,59 @@ const VoeuxPage = () => {
                                 Mes Vœux de Surveillance
                             </h1>
                         </div>
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="flex items-center px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-xl hover:from-gray-700 hover:to-gray-800 transform transition-all duration-300 hover:shadow-lg"
-                        >
-                            ← Retour au tableau de bord
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transform transition-all duration-300 hover:shadow-md"
+                            >
+                                <Printer className="w-5 h-5 mr-2" />
+                                Imprimer
+                            </button>
+                            <button
+                                onClick={() => navigate('/dashboard')}
+                                className="flex items-center px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-xl hover:from-gray-700 hover:to-gray-800 transform transition-all duration-300 hover:shadow-lg"
+                            >
+                                ← Retour
+                            </button>
+                        </div>
                     </div>
                 </div>
             </nav>
 
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                {/* Print Header - visible only on print */}
+                <div className="hidden print:block mb-8">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Fiche de Vœux de Surveillance</h1>
+                    <p className="text-gray-600">Enseignant: {currentUser?.username}</p>
+                    <p className="text-gray-600">Date: {new Date().toLocaleDateString()}</p>
+                </div>
+
+                {/* Capacity Info */}
+                {capacity !== null && (
+                    <div className="mb-6 bg-white rounded-2xl p-6 shadow-sm border border-indigo-100 print:border-gray-300">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">Ma Charge de Surveillance</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-indigo-50 rounded-xl p-4 print:bg-gray-50">
+                                <p className="text-sm text-indigo-600 font-medium mb-1">Capacité Requise</p>
+                                <p className="text-2xl font-bold text-indigo-900">{capacity} séances</p>
+                            </div>
+                            <div className="bg-purple-50 rounded-xl p-4 print:bg-gray-50">
+                                <p className="text-sm text-purple-600 font-medium mb-1">Vœux Exprimés</p>
+                                <p className="text-2xl font-bold text-purple-900">{myVoeux.length} séances</p>
+                            </div>
+                            <div className={`rounded-xl p-4 print:bg-gray-50 ${myVoeux.length >= capacity ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                                <p className={`text-sm font-medium mb-1 ${myVoeux.length >= capacity ? 'text-green-600' : 'text-yellow-600'}`}>Statut</p>
+                                <p className={`text-2xl font-bold ${myVoeux.length >= capacity ? 'text-green-900' : 'text-yellow-900'}`}>
+                                    {myVoeux.length >= capacity ? 'Objectif atteint ✅' : `Manque ${capacity - myVoeux.length} séances ⚠️`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Success/Error Messages */}
                 {success && (
-                    <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg animate-fade-in">
+                    <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg animate-fade-in print:hidden">
                         <div className="flex items-center">
                             <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
                             <p className="text-green-700 font-medium">{success}</p>
@@ -126,7 +199,7 @@ const VoeuxPage = () => {
                     </div>
                 )}
                 {error && (
-                    <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-fade-in">
+                    <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-fade-in print:hidden">
                         <div className="flex items-center">
                             <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
                             <p className="text-red-700 font-medium">{error}</p>
@@ -134,8 +207,8 @@ const VoeuxPage = () => {
                     </div>
                 )}
 
-                {/* Tabs */}
-                <div className="flex space-x-4 mb-6">
+                {/* Tabs - hidden on print */}
+                <div className="flex space-x-4 mb-6 print:hidden">
                     <button
                         onClick={() => setActiveTab('my')}
                         className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${activeTab === 'my'
@@ -162,40 +235,69 @@ const VoeuxPage = () => {
                     </div>
                 ) : (
                     <div className="grid gap-6">
-                        {activeTab === 'my' ? (
-                            myVoeux.length === 0 ? (
-                                <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-gray-300">
-                                    <div className="text-6xl mb-4">📭</div>
-                                    <h3 className="text-xl font-bold text-gray-700">Aucun vœu exprimé</h3>
-                                    <p className="text-gray-500 mt-2">Consultez l'onglet "Séances Disponibles" pour exprimer vos préférences.</p>
-                                </div>
+                        {/* Print View: Always show wishes */}
+                        <div className="hidden print:block">
+                            <h2 className="text-xl font-bold mb-4">Liste des Vœux</h2>
+                            <table className="w-full border-collapse border border-gray-300">
+                                <thead>
+                                    <tr className="bg-gray-100">
+                                        <th className="border border-gray-300 p-2 text-left">Matière</th>
+                                        <th className="border border-gray-300 p-2 text-left">Date</th>
+                                        <th className="border border-gray-300 p-2 text-left">Horaire</th>
+                                        <th className="border border-gray-300 p-2 text-left">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {myVoeux.map(voeu => (
+                                        <tr key={voeu.id}>
+                                            <td className="border border-gray-300 p-2">{voeu.seance?.matiere?.nom}</td>
+                                            <td className="border border-gray-300 p-2">{voeu.seance?.date}</td>
+                                            <td className="border border-gray-300 p-2">{voeu.seance?.horaire?.heure} - {voeu.seance?.horaire?.hfin}</td>
+                                            <td className="border border-gray-300 p-2">{voeu.statut}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Interactive View */}
+                        <div className="print:hidden">
+                            {activeTab === 'my' ? (
+                                myVoeux.length === 0 ? (
+                                    <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-gray-300">
+                                        <div className="text-6xl mb-4">📭</div>
+                                        <h3 className="text-xl font-bold text-gray-700">Aucun vœu exprimé</h3>
+                                        <p className="text-gray-500 mt-2">Consultez l'onglet "Séances Disponibles" pour exprimer vos préférences.</p>
+                                    </div>
+                                ) : (
+                                    myVoeux.map((voeu) => (
+                                        <VoeuCard
+                                            key={voeu.id}
+                                            voeu={voeu}
+                                            type="my"
+                                            onAction={handleAnnulerVoeu}
+                                        />
+                                    ))
+                                )
                             ) : (
-                                myVoeux.map((voeu) => (
-                                    <VoeuCard
-                                        key={voeu.id}
-                                        voeu={voeu}
-                                        type="my"
-                                        onAction={handleAnnulerVoeu}
-                                    />
-                                ))
-                            )
-                        ) : (
-                            availableSeances.length === 0 ? (
-                                <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-gray-300">
-                                    <div className="text-6xl mb-4">✨</div>
-                                    <h3 className="text-xl font-bold text-gray-700">Aucune séance disponible</h3>
-                                    <p className="text-gray-500 mt-2">Revenez plus tard pour de nouvelles opportunités.</p>
-                                </div>
-                            ) : (
-                                availableSeances.map((seance) => (
-                                    <SeanceCard
-                                        key={seance.id}
-                                        seance={seance}
-                                        onAction={handleExprimerVoeu}
-                                    />
-                                ))
-                            )
-                        )}
+                                availableSeances.length === 0 ? (
+                                    <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-gray-300">
+                                        <div className="text-6xl mb-4">✨</div>
+                                        <h3 className="text-xl font-bold text-gray-700">Aucune séance disponible</h3>
+                                        <p className="text-gray-500 mt-2">Revenez plus tard pour de nouvelles opportunités.</p>
+                                    </div>
+                                ) : (
+                                    availableSeances.map((seance) => (
+                                        <SeanceCard
+                                            key={seance.id}
+                                            seance={seance}
+                                            onAction={handleExprimerVoeu}
+                                            myMatieres={myMatieres}
+                                        />
+                                    ))
+                                )
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -260,16 +362,24 @@ const VoeuCard = ({ voeu, onAction }) => {
     );
 };
 
-const SeanceCard = ({ seance, onAction }) => {
+const SeanceCard = ({ seance, onAction, myMatieres }) => {
     const matiere = seance.matiere || {};
     const horaire = seance.horaire || {};
+    const enseigneMatiere = myMatieres.some(m => m.id === matiere.id);
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="h-2 w-full bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+        <div className={`bg-white rounded-2xl shadow-lg overflow-hidden border transition-all duration-300 transform hover:-translate-y-1 ${enseigneMatiere ? 'border-orange-300 bg-orange-50' : 'border-gray-100 hover:shadow-xl'}`}>
+            <div className={`h-2 w-full ${enseigneMatiere ? 'bg-orange-400' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
             <div className="p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">{matiere.nom || 'Matière inconnue'}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h3 className={`text-lg font-bold ${enseigneMatiere ? 'text-orange-800' : 'text-gray-800'}`}>{matiere.nom || 'Matière inconnue'}</h3>
+                        {enseigneMatiere && (
+                            <span className="px-2 py-0.5 rounded-full bg-orange-200 text-orange-800 text-xs font-bold">
+                                Votre matière
+                            </span>
+                        )}
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div className="flex items-center text-gray-700">
@@ -286,11 +396,30 @@ const SeanceCard = ({ seance, onAction }) => {
                 <div className="w-full md:w-auto">
                     <button
                         onClick={() => onAction(seance.id)}
-                        className="w-full md:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30"
+                        disabled={enseigneMatiere}
+                        className={`w-full md:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${enseigneMatiere
+                            ? 'bg-orange-200 text-orange-700 cursor-not-allowed border border-orange-300'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30'
+                            }`}
+                        title={enseigneMatiere ? "Vous ne pouvez pas surveiller votre propre matière" : ""}
                     >
-                        <PlusCircle className="w-5 h-5" />
-                        Exprimer un vœu
+                        {enseigneMatiere ? (
+                            <>
+                                <XCircle className="w-5 h-5" />
+                                Non autorisé
+                            </>
+                        ) : (
+                            <>
+                                <PlusCircle className="w-5 h-5" />
+                                Exprimer un vœu
+                            </>
+                        )}
                     </button>
+                    {enseigneMatiere && (
+                        <p className="text-xs text-orange-600 mt-2 text-center font-medium">
+                            Conflit de matière
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

@@ -3,7 +3,7 @@ package com.upec.gl.examsurveillance.service;
 import com.upec.gl.examsurveillance.model.Seance;
 import com.upec.gl.examsurveillance.repository.SeanceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.lang.NonNull;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,15 +23,15 @@ public class SeanceService {
         return seanceRepository.findAll();
     }
 
-    public Optional<Seance> getSeanceById(@NonNull Long id) {
-        return seanceRepository.findById(id);
+    public Optional<Seance> getSeanceById(Long id) {
+        return seanceRepository.findById(java.util.Objects.requireNonNull(id));
     }
 
-    public Seance createSeance(@NonNull Seance seance) {
-        return seanceRepository.save(seance);
+    public Seance createSeance(Seance seance) {
+        return seanceRepository.save(java.util.Objects.requireNonNull(seance));
     }
 
-    public void deleteSeance(@NonNull Long id) {
-        seanceRepository.deleteById(id);
+    public void deleteSeance(Long id) {
+        seanceRepository.deleteById(java.util.Objects.requireNonNull(id));
     }
 }
